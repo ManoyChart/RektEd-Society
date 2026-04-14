@@ -87,18 +87,26 @@ html, body {
 .early { background:#ffae00; color:black; }
 .accum { background:#00ff9f; color:black; }
 .smart { background:#00d4ff; color:black; }
-.fake { background:#9b59ff; }
+.none { background:#333; color:#aaa; }
 
+/* LIQUIDITY */
 .liquidity {
-    height:6px;
+    width:100%;
+    height:8px;
     background:#111;
     border-radius:5px;
+    overflow:hidden;
 }
 
 .liq-bar {
-    height:6px;
-    background:#b6ff00;
-    border-radius:5px;
+    height:100%;
+    background:linear-gradient(90deg,#00ff9f,#b6ff00,#ffae00,#ff3b3b);
+}
+
+/* 7D CHART */
+.spark {
+    width:120px;
+    height:30px;
 }
 </style>
 </head>
@@ -125,16 +133,13 @@ html, body {
 
 <!-- BUTTONS -->
 <div class="cards">
-
 <button class="btn" onclick="setFilter('all')">📊 All</button>
 <button class="btn" onclick="sortWhales()">🐋 Top Whales</button>
 <button class="btn" onclick="sortGainers()">🚀 Top Gainers</button>
-
 <button class="btn" onclick="setFilter('pump')">🔥 Strong Pump</button>
 <button class="btn" onclick="setFilter('early')">🚀 Early Pump</button>
 <button class="btn" onclick="setFilter('accum')">🧠 Accumulation</button>
 <button class="btn" onclick="setFilter('smart')">🧠 Smart Money</button>
-
 </div>
 
 <!-- TABLE -->
@@ -150,6 +155,8 @@ html, body {
 <th>Market Cap</th>
 <th>AI Signal</th>
 <th>Whale%</th>
+<th>Liquidity</th>
+<th>7D Chart</th>
 </tr>
 </thead>
 <tbody id="table"></tbody>
@@ -163,63 +170,79 @@ html, body {
 let dataStore = [];
 let filterMode = "all";
 
-// FORMAT
 function format(n){
     if(!n) return "-";
     return n > 1e9 ? (n/1e9).toFixed(2)+"B" :
-           n > 1e6 ? (n/1e6).toFixed(2)+"M" : n.toFixed(2);
+           n > 1e6 ? (n/1e6).toFixed(2)+"M" :
+           n.toFixed(2);
 }
 
-// AI
 function ai(c){
-
-    let r = (c.total_volume / c.market_cap) || 0;
+    let mc = c.market_cap || 1;
+    let r = (c.total_volume / mc) || 0;
     let p = c.price_change_percentage_24h || 0;
 
-    let score = r * 100;
+    if(p > 5 && r > 0.15) return {label:"🔥 Strong Pump", class:"pump"};
+    if(p > 2) return {label:"🚀 Early Pump", class:"early"};
+    if(r > 0.12) return {label:"🧠 Smart Money", class:"smart"};
+    if(r > 0.05) return {label:"🧠 Accumulation", class:"accum"};
 
-    if(p > 5 && r > 0.15) return {label:"🔥 Strong Pump", class:"pump", score};
-    if(p > 2) return {label:"🚀 Early Pump", class:"early", score};
-    if(r > 0.12) return {label:"🧠 Smart Money", class:"smart", score};
-    if(r > 0.05) return {label:"🧠 Accumulation", class:"accum", score};
-
-    return null;
+    return {label:"—", class:"none"};
 }
 
-// FILTER
 function setFilter(f){
     filterMode = f;
     render(dataStore);
 }
 
-// REFRESH
 function refreshMarket(){
-    filterMode = "all";
     load();
 }
 
-// SORT WHALE
 function sortWhales(){
     let d = [...dataStore];
-    d.sort((a,b)=>(b.total_volume/b.market_cap)-(a.total_volume/a.market_cap));
+    d.sort((a,b)=>(b.total_volume/(b.market_cap||1))-(a.total_volume/(a.market_cap||1)));
     render(d);
 }
 
-// SORT GAINERS
 function sortGainers(){
     let d = [...dataStore];
     d.sort((a,b)=>(b.price_change_percentage_24h||0)-(a.price_change_percentage_24h||0));
     render(d);
 }
 
-// RENDER
+// DRAW SPARKLINE
+function drawSparkline(canvas, data){
+    let ctx = canvas.getContext("2d");
+
+    let w = canvas.width;
+    let h = canvas.height;
+
+    let min = Math.min(...data);
+    let max = Math.max(...data);
+
+    ctx.clearRect(0,0,w,h);
+    ctx.beginPath();
+
+    data.forEach((p,i)=>{
+        let x = (i/(data.length-1))*w;
+        let y = h - ((p-min)/(max-min))*h;
+
+        if(i===0) ctx.moveTo(x,y);
+        else ctx.lineTo(x,y);
+    });
+
+    ctx.strokeStyle = "#b6ff00";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+}
+
 function render(data){
 
     let html = "";
     let pumps=0, early=0, accum=0, smart=0;
 
-    let filtered = data.map(c => ({...c, ai: ai(c)}))
-                       .filter(c => c.ai !== null);
+    let filtered = data.map(c => ({...c, ai: ai(c)}));
 
     filtered = filtered.filter(c => {
         if(filterMode === "all") return true;
@@ -232,25 +255,37 @@ function render(data){
 
     filtered.forEach((c,i)=>{
 
-        let whale = (c.total_volume / c.market_cap) * 100;
+        let mc = c.market_cap || 1;
+        let whale = Math.min(100, (c.total_volume / mc) * 100);
 
         if(c.ai.class==="pump") pumps++;
         if(c.ai.class==="early") early++;
         if(c.ai.class==="accum") accum++;
         if(c.ai.class==="smart") smart++;
 
+        let sparkData = c.sparkline_in_7d?.price || [];
+
         html += `
         <tr onclick="openChart('${c.symbol}')">
         <td>${i+1}</td>
         <td>${c.name}</td>
         <td>$${c.current_price}</td>
-        <td style="color:${c.price_change_percentage_24h>0?'#00ff9f':'#ff4d4d'}">
-        ${c.price_change_percentage_24h.toFixed(2)}%
+        <td style="color:${(c.price_change_percentage_24h||0)>0?'#00ff9f':'#ff4d4d'}">
+        ${(c.price_change_percentage_24h||0).toFixed(2)}%
         </td>
         <td>$${format(c.total_volume)}</td>
         <td>$${format(c.market_cap)}</td>
         <td><span class="badge ${c.ai.class}">${c.ai.label}</span></td>
         <td>🐋 ${whale.toFixed(2)}%</td>
+        <td>
+            <div class="liquidity">
+                <div class="liq-bar" style="width:${whale}%"></div>
+            </div>
+        </td>
+        <td>
+            <canvas class="spark" width="120" height="30"
+            data-spark='${JSON.stringify(sparkData)}'></canvas>
+        </td>
         </tr>`;
     });
 
@@ -260,27 +295,30 @@ function render(data){
     document.getElementById("early").innerText = early;
     document.getElementById("accum").innerText = accum;
     document.getElementById("smartmoney").innerText = smart;
+
+    // DRAW ALL SPARKLINES
+    document.querySelectorAll(".spark").forEach(canvas=>{
+        let data = JSON.parse(canvas.dataset.spark || "[]");
+        if(data.length > 2) drawSparkline(canvas, data);
+    });
 }
 
-// CHART
 function openChart(sym){
     window.open(`https://www.tradingview.com/chart/?symbol=BINANCE:${sym.toUpperCase()}USDT`);
 }
 
-// LOAD
 async function load(){
 
-    let res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=volume_desc&per_page=100&page=1");
+    let res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=volume_desc&per_page=100&page=1&sparkline=true");
     let json = await res.json();
 
     dataStore = json;
     render(json);
 
-    let top = Math.max(...json.map(c => (c.total_volume/c.market_cap)*100));
+    let top = Math.max(...json.map(c => (c.total_volume/(c.market_cap||1))*100));
     document.getElementById("topwhale").innerText = top.toFixed(2)+"%";
 }
 
-// INIT
 load();
 
 </script>
