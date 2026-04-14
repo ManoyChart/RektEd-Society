@@ -12,30 +12,19 @@ html, body {
     overflow-x:hidden;
 }
 
-.container {
-    max-width:1200px;
-    margin:auto;
-    padding:20px;
-}
+.container { max-width:1200px; margin:auto; padding:20px; }
 
 .hero h1 { font-size:34px; }
 .highlight { color:#b6ff00; text-shadow:0 0 8px #b6ff00; }
 .sub { color:#8b9bb4; }
 
-.cards {
-    display:flex;
-    flex-wrap:wrap;
-    gap:10px;
-    margin-top:20px;
-}
+.cards { display:flex; flex-wrap:wrap; gap:10px; margin-top:20px; }
 
 .card {
-    flex:1;
-    min-width:150px;
+    flex:1; min-width:150px;
     background:rgba(255,255,255,0.02);
     border:1px solid rgba(255,255,255,0.05);
-    padding:15px;
-    border-radius:12px;
+    padding:15px; border-radius:12px;
     text-align:center;
 }
 
@@ -48,7 +37,6 @@ html, body {
     font-weight:bold;
     color:black;
 }
-
 .btn:hover { box-shadow:0 0 10px #b6ff00; }
 
 .panel {
@@ -59,23 +47,16 @@ html, body {
     overflow-x:auto;
 }
 
-.table {
-    width:100%;
-    border-collapse:collapse;
-}
+.table { width:100%; border-collapse:collapse; }
 
-.table th, .table td {
-    padding:12px;
-}
+.table th, .table td { padding:12px; }
 
 .table tr {
     border-bottom:1px solid rgba(255,255,255,0.05);
     cursor:pointer;
 }
 
-.table tr:hover {
-    background:rgba(182,255,0,0.05);
-}
+.table tr:hover { background:rgba(182,255,0,0.05); }
 
 .badge {
     padding:4px 10px;
@@ -89,7 +70,7 @@ html, body {
 .smart { background:#00d4ff; color:black; }
 .none { background:#333; color:#aaa; }
 
-/* LIQUIDITY */
+/* liquidity */
 .liquidity {
     width:100%;
     height:8px;
@@ -103,10 +84,11 @@ html, body {
     background:linear-gradient(90deg,#00ff9f,#b6ff00,#ffae00,#ff3b3b);
 }
 
-/* 7D CHART */
+/* sparkline */
 .spark {
     width:120px;
     height:30px;
+}
 </style>
 </head>
 
@@ -174,28 +156,70 @@ Updated: --
 <script>
 
 let dataStore = [];
+let prevStore = [];
+let audioCtx = null;
 let filterMode = "all";
 
-function format(n){
-    if(!n) return "-";
-    return n > 1e9 ? (n/1e9).toFixed(2)+"B" :
-           n > 1e6 ? (n/1e6).toFixed(2)+"M" :
-           n.toFixed(2);
+/* TIME */
+function updateTime(){
+    document.getElementById("updatedTime").innerText =
+        "Updated: " + new Date().toLocaleTimeString();
 }
 
+/* SOUND */
+function playBeep(){
+    try{
+        if(!audioCtx){
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.frequency.value = 800;
+        gain.gain.value = 0.05;
+
+        osc.start();
+        setTimeout(()=>osc.stop(), 120);
+    }catch(e){}
+}
+
+/* ALERT */
+function showAlert(msg){
+    let div = document.createElement("div");
+    div.innerText = msg;
+
+    div.style.position="fixed";
+    div.style.top="20px";
+    div.style.right="20px";
+    div.style.background="#b6ff00";
+    div.style.color="#000";
+    div.style.padding="12px";
+    div.style.borderRadius="10px";
+    div.style.zIndex="9999";
+    div.style.fontWeight="bold";
+
+    document.body.appendChild(div);
+    setTimeout(()=>div.remove(),2500);
+}
+
+/* AI LABEL */
 function ai(c){
     let mc = c.market_cap || 1;
     let r = (c.total_volume / mc) || 0;
     let p = c.price_change_percentage_24h || 0;
 
-    if(p > 5 && r > 0.15) return {label:"🔥 Strong Pump", class:"pump"};
-    if(p > 2) return {label:"🚀 Early Pump", class:"early"};
-    if(r > 0.12) return {label:"🧠 Smart Money", class:"smart"};
-    if(r > 0.05) return {label:"🧠 Accumulation", class:"accum"};
+    if(p > 5 && r > 0.15) return {label:"Strong Pump", class:"pump"};
+    if(p > 2) return {label:"Early Pump", class:"early"};
+    if(r > 0.12) return {label:"Smart Money", class:"smart"};
+    if(r > 0.05) return {label:"Accumulation", class:"accum"};
 
-    return {label:"—", class:"none"};
+    return {label:"", class:"none"};
 }
 
+/* FILTER */
 function setFilter(f){
     filterMode = f;
     render(dataStore);
@@ -205,6 +229,7 @@ function refreshMarket(){
     load();
 }
 
+/* SORT */
 function sortWhales(){
     let d = [...dataStore];
     d.sort((a,b)=>(b.total_volume/(b.market_cap||1))-(a.total_volume/(a.market_cap||1)));
@@ -217,70 +242,81 @@ function sortGainers(){
     render(d);
 }
 
-// DRAW SPARKLINE
-function drawSparkline(canvas, data){
+/* SPARKLINE */
+function drawSparkline(canvas,data){
     let ctx = canvas.getContext("2d");
-
-    let w = canvas.width;
-    let h = canvas.height;
+    let w = canvas.width, h = canvas.height;
 
     let min = Math.min(...data);
     let max = Math.max(...data);
 
-    ctx.clearRect(0,0,w,h);
     ctx.beginPath();
-
     data.forEach((p,i)=>{
         let x = (i/(data.length-1))*w;
         let y = h - ((p-min)/(max-min))*h;
-
         if(i===0) ctx.moveTo(x,y);
         else ctx.lineTo(x,y);
     });
 
-    ctx.strokeStyle = "#b6ff00";
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle="#b6ff00";
+    ctx.lineWidth=1.5;
     ctx.stroke();
 }
 
+/* RENDER */
 function render(data){
 
-    let html = "";
-    let pumps=0, early=0, accum=0, smart=0;
+    let html="";
+    let pumps=0,early=0,accum=0,smart=0;
 
-    let filtered = data.map(c => ({...c, ai: ai(c)}));
+    let filtered = data.map(c=>({...c, ai: ai(c)}));
 
-    filtered = filtered.filter(c => {
-        if(filterMode === "all") return true;
-        if(filterMode === "pump") return c.ai.class === "pump";
-        if(filterMode === "early") return c.ai.class === "early";
-        if(filterMode === "accum") return c.ai.class === "accum";
-        if(filterMode === "smart") return c.ai.class === "smart";
-        return true;
-    });
+    if(prevStore.length){
+        data.forEach(c=>{
+            let prev = prevStore.find(x=>x.id===c.id);
+            if(!prev) return;
+
+            if(c.price_change_percentage_24h > 8 &&
+               (prev.price_change_percentage_24h||0) <= 8){
+                showAlert("🚨 NEW PUMP: " + c.name);
+                playBeep();
+            }
+        });
+    }
+
+ filtered = filtered.filter(c=>{
+
+    // 🚫 Hide coins with NO SIGNAL
+    if(c.ai.class === "none") return false;
+
+    // existing filter logic
+    if(filterMode==="all") return true;
+
+    return c.ai.class===filterMode;
+});
 
     filtered.forEach((c,i)=>{
 
-        let mc = c.market_cap || 1;
-        let whale = Math.min(100, (c.total_volume / mc) * 100);
+        let mc = c.market_cap||1;
+        let whale = Math.min(100,(c.total_volume/mc)*100);
 
         if(c.ai.class==="pump") pumps++;
         if(c.ai.class==="early") early++;
         if(c.ai.class==="accum") accum++;
         if(c.ai.class==="smart") smart++;
 
-        let sparkData = c.sparkline_in_7d?.price || [];
+        let spark = c.sparkline_in_7d?.price || [];
 
         html += `
         <tr onclick="openChart('${c.symbol}')">
         <td>${i+1}</td>
         <td>${c.name}</td>
         <td>$${c.current_price}</td>
-        <td style="color:${(c.price_change_percentage_24h||0)>0?'#00ff9f':'#ff4d4d'}">
-        ${(c.price_change_percentage_24h||0).toFixed(2)}%
+        <td style="color:${c.price_change_percentage_24h>0?'#00ff9f':'#ff4d4d'}">
+        ${c.price_change_percentage_24h.toFixed(2)}%
         </td>
-        <td>$${format(c.total_volume)}</td>
-        <td>$${format(c.market_cap)}</td>
+        <td>$${c.total_volume.toLocaleString()}</td>
+        <td>$${(c.market_cap||0).toLocaleString()}</td>
         <td><span class="badge ${c.ai.class}">${c.ai.label}</span></td>
         <td>🐋 ${whale.toFixed(2)}%</td>
         <td>
@@ -290,29 +326,30 @@ function render(data){
         </td>
         <td>
             <canvas class="spark" width="120" height="30"
-            data-spark='${JSON.stringify(sparkData)}'></canvas>
+            data='${JSON.stringify(spark)}'></canvas>
         </td>
         </tr>`;
     });
 
     document.getElementById("table").innerHTML = html;
 
-    document.getElementById("pumps").innerText = pumps;
-    document.getElementById("early").innerText = early;
-    document.getElementById("accum").innerText = accum;
-    document.getElementById("smartmoney").innerText = smart;
+    document.getElementById("pumps").innerText=pumps;
+    document.getElementById("early").innerText=early;
+    document.getElementById("accum").innerText=accum;
+    document.getElementById("smartmoney").innerText=smart;
 
-    // DRAW ALL SPARKLINES
-    document.querySelectorAll(".spark").forEach(canvas=>{
-        let data = JSON.parse(canvas.dataset.spark || "[]");
-        if(data.length > 2) drawSparkline(canvas, data);
+    document.querySelectorAll(".spark").forEach(c=>{
+        let d=JSON.parse(c.getAttribute("data")||"[]");
+        if(d.length>2) drawSparkline(c,d);
     });
 }
 
+/* CHART */
 function openChart(sym){
     window.open(`https://www.tradingview.com/chart/?symbol=BINANCE:${sym.toUpperCase()}USDT`);
 }
 
+/* LOAD */
 async function load(){
 
     let res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=volume_desc&per_page=100&page=1&sparkline=true");
@@ -321,8 +358,11 @@ async function load(){
     dataStore = json;
     render(json);
 
-    let top = Math.max(...json.map(c => (c.total_volume/(c.market_cap||1))*100));
-    document.getElementById("topwhale").innerText = top.toFixed(2)+"%";
+    prevStore = json;
+    updateTime();
+
+    let top = Math.max(...json.map(c=>(c.total_volume/(c.market_cap||1))*100));
+    document.getElementById("topwhale").innerText=top.toFixed(2)+"%";
 }
 
 load();
