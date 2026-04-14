@@ -89,7 +89,7 @@ html, body {
 .smart { background:#00d4ff; color:black; }
 .none { background:#333; color:#aaa; }
 
-/* LIQUIDITY */
+/* liquidity */
 .liquidity {
     width:100%;
     height:8px;
@@ -103,7 +103,7 @@ html, body {
     background:linear-gradient(90deg,#00ff9f,#b6ff00,#ffae00,#ff3b3b);
 }
 
-/* 7D CHART */
+/* sparkline */
 .spark {
     width:120px;
     height:30px;
@@ -119,7 +119,13 @@ html, body {
 <h1><span class="highlight">RektEd Society</span> Crypto Intelligence</h1>
 <p class="sub">AI smart money tracking, whale detection & pump signals</p>
 <br>
+
 <button class="btn" onclick="refreshMarket()">🔄 Refresh Market</button>
+
+<span id="updatedTime" style="margin-left:10px;color:#8b9bb4;font-size:13px;">
+Updated: --
+</span>
+
 </div>
 
 <!-- STATS -->
@@ -170,6 +176,12 @@ html, body {
 let dataStore = [];
 let filterMode = "all";
 
+function updateTime(){
+    let now = new Date();
+    document.getElementById("updatedTime").innerText =
+        "Updated: " + now.toLocaleTimeString();
+}
+
 function format(n){
     if(!n) return "-";
     return n > 1e9 ? (n/1e9).toFixed(2)+"B" :
@@ -211,7 +223,6 @@ function sortGainers(){
     render(d);
 }
 
-// DRAW SPARKLINE
 function drawSparkline(canvas, data){
     let ctx = canvas.getContext("2d");
 
@@ -263,7 +274,7 @@ function render(data){
         if(c.ai.class==="accum") accum++;
         if(c.ai.class==="smart") smart++;
 
-        let sparkData = c.sparkline_in_7d?.price || [];
+        let spark = c.sparkline_in_7d?.price || [];
 
         html += `
         <tr onclick="openChart('${c.symbol}')">
@@ -284,7 +295,7 @@ function render(data){
         </td>
         <td>
             <canvas class="spark" width="120" height="30"
-            data-spark='${JSON.stringify(sparkData)}'></canvas>
+            data='${JSON.stringify(spark)}'></canvas>
         </td>
         </tr>`;
     });
@@ -296,10 +307,9 @@ function render(data){
     document.getElementById("accum").innerText = accum;
     document.getElementById("smartmoney").innerText = smart;
 
-    // DRAW ALL SPARKLINES
-    document.querySelectorAll(".spark").forEach(canvas=>{
-        let data = JSON.parse(canvas.dataset.spark || "[]");
-        if(data.length > 2) drawSparkline(canvas, data);
+    document.querySelectorAll(".spark").forEach(c=>{
+        let data = JSON.parse(c.getAttribute("data") || "[]");
+        if(data.length > 2) drawSparkline(c, data);
     });
 }
 
@@ -308,12 +318,12 @@ function openChart(sym){
 }
 
 async function load(){
-
     let res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=volume_desc&per_page=100&page=1&sparkline=true");
     let json = await res.json();
 
     dataStore = json;
     render(json);
+    updateTime();
 
     let top = Math.max(...json.map(c => (c.total_volume/(c.market_cap||1))*100));
     document.getElementById("topwhale").innerText = top.toFixed(2)+"%";
