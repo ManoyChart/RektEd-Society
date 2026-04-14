@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>RektEd Society </title>
+<title>Manoy Chart</title>
 
 <style>
-body {
+html, body {
     background: radial-gradient(circle at top, #0a0a0a, #000000);
     color:#e6edf3;
     font-family: 'Segoe UI', Arial;
+    overflow-x:hidden;
 }
 
 .container {
@@ -17,41 +18,14 @@ body {
     padding:20px;
 }
 
-/* HERO */
-.hero h1 {
-    font-size:34px;
-}
+.hero h1 { font-size:34px; }
+.highlight { color:#b6ff00; text-shadow:0 0 8px #b6ff00; }
+.sub { color:#8b9bb4; }
 
-.highlight {
-    color:#b6ff00;
-    text-shadow:0 0 8px #b6ff00;
-}
-
-.sub {
-    color:#8b9bb4;
-}
-
-/* BUTTON */
-.btn {
-    background:#b6ff00;
-    color:black;
-    padding:10px 14px;
-    border:none;
-    border-radius:8px;
-    cursor:pointer;
-    font-weight:bold;
-    transition:0.2s;
-}
-
-.btn:hover {
-    box-shadow:0 0 12px #b6ff00;
-}
-
-/* CARDS */
 .cards {
     display:flex;
-    gap:12px;
     flex-wrap:wrap;
+    gap:10px;
     margin-top:20px;
 }
 
@@ -61,58 +35,60 @@ body {
     background:rgba(255,255,255,0.02);
     border:1px solid rgba(255,255,255,0.05);
     padding:15px;
-    border-radius:14px;
+    border-radius:12px;
     text-align:center;
-    backdrop-filter:blur(8px);
 }
 
-/* PANEL */
+.btn {
+    background:#b6ff00;
+    border:none;
+    padding:10px 12px;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:bold;
+    color:black;
+}
+
+.btn:hover { box-shadow:0 0 10px #b6ff00; }
+
 .panel {
-    background:rgba(255,255,255,0.02);
-    border:1px solid rgba(255,255,255,0.06);
-    border-radius:15px;
-    padding:10px;
     margin-top:20px;
+    background:rgba(255,255,255,0.02);
+    border-radius:12px;
+    padding:10px;
+    overflow-x:auto;
 }
 
-/* TABLE */
 .table {
     width:100%;
     border-collapse:collapse;
 }
 
-.table th {
-    color:#8b9bb4;
-    font-weight:500;
-}
-
-.table td, .table th {
+.table th, .table td {
     padding:12px;
 }
 
 .table tr {
     border-bottom:1px solid rgba(255,255,255,0.05);
-    transition:0.2s;
+    cursor:pointer;
 }
 
 .table tr:hover {
     background:rgba(182,255,0,0.05);
 }
 
-/* BADGES */
 .badge {
     padding:4px 10px;
     border-radius:20px;
     font-size:12px;
-    font-weight:600;
 }
 
 .pump { background:#ff3b3b; }
 .early { background:#ffae00; color:black; }
 .accum { background:#00ff9f; color:black; }
+.smart { background:#00d4ff; color:black; }
 .fake { background:#9b59ff; }
 
-/* LIQUIDITY */
 .liquidity {
     height:6px;
     background:#111;
@@ -131,32 +107,34 @@ body {
 
 <div class="container">
 
-<!-- HERO -->
 <div class="hero">
-<h1><span class="highlight">RektEd Society </span> crypto intelligence</h1>
-<p class="sub">AI-powered smart money tracking, whale detection & pump signals</p>
+<h1><span class="highlight">RektEd Society</span> Crypto Intelligence</h1>
+<p class="sub">AI smart money tracking, whale detection & pump signals</p>
 <br>
-<button class="btn" onclick="loadData()">Refresh Market</button>
+<button class="btn" onclick="refreshMarket()">🔄 Refresh Market</button>
 </div>
 
 <!-- STATS -->
 <div class="cards">
-<div class="card">🔥 Pumps<br><strong id="pumps">0</strong></div>
-<div class="card">🚀 Early<br><strong id="early">0</strong></div>
-<div class="card">🧠 Accumulation<br><strong id="accum">0</strong></div>
-<div class="card">🐋 Top Whale<br><strong id="topwhale">0%</strong></div>
+<div class="card">🔥 Pumps <div id="pumps">0</div></div>
+<div class="card">🚀 Early <div id="early">0</div></div>
+<div class="card">🧠 Accum <div id="accum">0</div></div>
+<div class="card">🧠 Smart <div id="smartmoney">0</div></div>
+<div class="card">🐋 Whale <div id="topwhale">0%</div></div>
 </div>
 
+<!-- BUTTONS -->
 <div class="cards">
-<div class="card">🧠 Smart Money<br><strong id="smartmoney">0</strong></div>
-<div class="card">₿ BTC.D<br><strong id="btcd">...</strong></div>
-<div class="card">💲 USDT.D<br><strong id="usdt">...</strong></div>
-</div>
 
-<!-- CONTROLS -->
-<div class="cards">
-<button class="btn" onclick="sortByWhale()">🐋 Top Whales</button>
-<button class="btn" onclick="sortByGainers()">🚀 Top Gainers</button>
+<button class="btn" onclick="setFilter('all')">📊 All</button>
+<button class="btn" onclick="sortWhales()">🐋 Top Whales</button>
+<button class="btn" onclick="sortGainers()">🚀 Top Gainers</button>
+
+<button class="btn" onclick="setFilter('pump')">🔥 Strong Pump</button>
+<button class="btn" onclick="setFilter('early')">🚀 Early Pump</button>
+<button class="btn" onclick="setFilter('accum')">🧠 Accumulation</button>
+<button class="btn" onclick="setFilter('smart')">🧠 Smart Money</button>
+
 </div>
 
 <!-- TABLE -->
@@ -170,7 +148,6 @@ body {
 <th>24h%</th>
 <th>Volume</th>
 <th>Market Cap</th>
-<th>Liquidity</th>
 <th>AI Signal</th>
 <th>Whale%</th>
 </tr>
@@ -183,78 +160,75 @@ body {
 
 <script>
 
-// GLOBAL
-let globalData = [];
+let dataStore = [];
+let filterMode = "all";
 
 // FORMAT
-function formatB(n){
+function format(n){
     if(!n) return "-";
-    return n >= 1e9 ? (n/1e9).toFixed(2)+"B" :
-           n >= 1e6 ? (n/1e6).toFixed(2)+"M" :
-           n.toFixed(2);
+    return n > 1e9 ? (n/1e9).toFixed(2)+"B" :
+           n > 1e6 ? (n/1e6).toFixed(2)+"M" : n.toFixed(2);
 }
 
-function getLiquidity(c){
-    return Math.min(100,(c.total_volume / c.market_cap) * 100);
-}
+// AI
+function ai(c){
 
-// 🧠 AI MODEL
-function getAIPrediction(c){
+    let r = (c.total_volume / c.market_cap) || 0;
+    let p = c.price_change_percentage_24h || 0;
 
-    let price = c.price_change_percentage_24h || 0;
-    let volume = c.total_volume || 0;
-    let marketCap = c.market_cap || 1;
+    let score = r * 100;
 
-    let volRatio = volume / marketCap;
-    let score = 0;
-    let smartMoney = false;
-
-    if(volRatio > 0.12 && price < 1.5){
-        score += 25;
-        smartMoney = true;
-    }
-
-    if(volRatio > 0.18 && price < 3){
-        score += 20;
-        smartMoney = true;
-    }
-
-    if(price > 4 && volRatio > 0.15){
-        score += 25;
-    }
-
-    score += price * 1.1;
-    score += volRatio * 120;
-
-    let isFake = price > 10 && volRatio < 0.07;
-
-    if(isFake) return {label:"⚠️ Fake Pump", class:"fake", score};
-
-    if(smartMoney && score > 30)
-        return {label:"🧠 Smart Money", class:"early", score};
-
-    if(score > 45)
-        return {label:"🔥 Strong Pump", class:"pump", score};
-
-    if(score > 28)
-        return {label:"🚀 Early Pump", class:"early", score};
-
-    if(score > 15)
-        return {label:"🧠 Accumulation", class:"accum", score};
+    if(p > 5 && r > 0.15) return {label:"🔥 Strong Pump", class:"pump", score};
+    if(p > 2) return {label:"🚀 Early Pump", class:"early", score};
+    if(r > 0.12) return {label:"🧠 Smart Money", class:"smart", score};
+    if(r > 0.05) return {label:"🧠 Accumulation", class:"accum", score};
 
     return null;
+}
+
+// FILTER
+function setFilter(f){
+    filterMode = f;
+    render(dataStore);
+}
+
+// REFRESH
+function refreshMarket(){
+    filterMode = "all";
+    load();
+}
+
+// SORT WHALE
+function sortWhales(){
+    let d = [...dataStore];
+    d.sort((a,b)=>(b.total_volume/b.market_cap)-(a.total_volume/a.market_cap));
+    render(d);
+}
+
+// SORT GAINERS
+function sortGainers(){
+    let d = [...dataStore];
+    d.sort((a,b)=>(b.price_change_percentage_24h||0)-(a.price_change_percentage_24h||0));
+    render(d);
 }
 
 // RENDER
 function render(data){
 
-    let html="";
+    let html = "";
     let pumps=0, early=0, accum=0, smart=0;
 
-    let filtered = data
-        .map(c => ({...c, ai:getAIPrediction(c)}))
-        .filter(c => c.ai !== null)
-        .sort((a,b)=> b.ai.score - a.ai.score);
+    let filtered = data.map(c => ({...c, ai: ai(c)}))
+                       .filter(c => c.ai !== null);
+
+    filtered = filtered.filter(c => {
+        if(filterMode === "all") return true;
+        if(filterMode === "pump") return c.ai.class === "pump";
+        if(filterMode === "early") return c.ai.class === "early";
+        if(filterMode === "accum") return c.ai.class === "accum";
+        if(filterMode === "smart") return c.ai.class === "smart";
+        return true;
+    });
 
     filtered.forEach((c,i)=>{
 
@@ -263,48 +237,29 @@ function render(data){
         if(c.ai.class==="pump") pumps++;
         if(c.ai.class==="early") early++;
         if(c.ai.class==="accum") accum++;
-        if(c.ai.label.includes("Smart Money")) smart++;
+        if(c.ai.class==="smart") smart++;
 
-        html+=`
+        html += `
         <tr onclick="openChart('${c.symbol}')">
         <td>${i+1}</td>
-        <td><img src="${c.image}" width="20"> ${c.name}</td>
+        <td>${c.name}</td>
         <td>$${c.current_price}</td>
         <td style="color:${c.price_change_percentage_24h>0?'#00ff9f':'#ff4d4d'}">
         ${c.price_change_percentage_24h.toFixed(2)}%
         </td>
-        <td>$${formatB(c.total_volume)}</td>
-        <td>$${formatB(c.market_cap)}</td>
-        <td>
-        <div class="liquidity">
-        <div class="liq-bar" style="width:${getLiquidity(c)}%"></div>
-        </div>
-        </td>
+        <td>$${format(c.total_volume)}</td>
+        <td>$${format(c.market_cap)}</td>
         <td><span class="badge ${c.ai.class}">${c.ai.label}</span></td>
         <td>🐋 ${whale.toFixed(2)}%</td>
         </tr>`;
     });
 
     document.getElementById("table").innerHTML = html;
+
     document.getElementById("pumps").innerText = pumps;
     document.getElementById("early").innerText = early;
     document.getElementById("accum").innerText = accum;
     document.getElementById("smartmoney").innerText = smart;
-}
-
-// SORT
-function sortByWhale(){
-    globalData.sort((a,b)=>
-        (b.total_volume/b.market_cap)-(a.total_volume/a.market_cap)
-    );
-    render(globalData);
-}
-
-function sortByGainers(){
-    globalData.sort((a,b)=>
-        b.price_change_percentage_24h - a.price_change_percentage_24h
-    );
-    render(globalData);
 }
 
 // CHART
@@ -312,35 +267,21 @@ function openChart(sym){
     window.open(`https://www.tradingview.com/chart/?symbol=BINANCE:${sym.toUpperCase()}USDT`);
 }
 
-// DOMINANCE
-async function loadDominance(){
-    let res = await fetch("https://api.coingecko.com/api/v3/global");
-    let data = await res.json();
-
-    document.getElementById("btcd").innerText =
-        data.data.market_cap_percentage.btc.toFixed(2)+"%";
-
-    document.getElementById("usdt").innerText =
-        data.data.market_cap_percentage.usdt.toFixed(2)+"%";
-}
-
 // LOAD
-async function loadData(){
+async function load(){
 
     let res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=volume_desc&per_page=100&page=1");
-    let data = await res.json();
+    let json = await res.json();
 
-    globalData = data;
-    render(data);
+    dataStore = json;
+    render(json);
 
-    let top = Math.max(...data.map(c=>c.total_volume/c.market_cap*100));
+    let top = Math.max(...json.map(c => (c.total_volume/c.market_cap)*100));
     document.getElementById("topwhale").innerText = top.toFixed(2)+"%";
-
-    loadDominance();
 }
 
 // INIT
-loadData();
+load();
 
 </script>
 
