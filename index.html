@@ -70,7 +70,6 @@ html, body {
 .smart { background:#00d4ff; color:black; }
 .none { background:#333; color:#aaa; }
 
-/* liquidity */
 .liquidity {
     width:100%;
     height:8px;
@@ -84,7 +83,6 @@ html, body {
     background:linear-gradient(90deg,#00ff9f,#b6ff00,#ffae00,#ff3b3b);
 }
 
-/* sparkline */
 .spark {
     width:120px;
     height:30px;
@@ -107,6 +105,31 @@ html, body {
 <span id="updatedTime" style="margin-left:10px;color:#8b9bb4;font-size:13px;">
 Updated: --
 </span>
+
+</div>
+
+<!-- ✅ NEW MARKET OVERVIEW -->
+<div class="cards">
+
+<div class="card">
+<div>Market Cap</div>
+<div id="totalMarketCap">$0</div>
+</div>
+
+<div class="card">
+<div>CMC20</div>
+<div id="cmc20">$0</div>
+</div>
+
+<div class="card">
+<div>Fear & Greed</div>
+<div id="fearGreed">--</div>
+</div>
+
+<div class="card">
+<div>Altcoin Season</div>
+<div id="altSeason">-- / 100</div>
+</div>
 
 </div>
 
@@ -205,7 +228,7 @@ function showAlert(msg){
     setTimeout(()=>div.remove(),2500);
 }
 
-/* AI LABEL */
+/* AI */
 function ai(c){
     let mc = c.market_cap || 1;
     let r = (c.total_volume / mc) || 0;
@@ -219,15 +242,34 @@ function ai(c){
     return {label:"", class:"none"};
 }
 
-/* FILTER */
-function setFilter(f){
-    filterMode = f;
-    render(dataStore);
+/* MARKET OVERVIEW */
+async function loadMarketOverview(){
+    try{
+        let global = await fetch("https://api.coingecko.com/api/v3/global");
+        let g = await global.json();
+
+        let cap = g.data.total_market_cap.usd;
+        document.getElementById("totalMarketCap").innerText =
+            "$" + (cap/1e12).toFixed(2) + "T";
+
+        let btcDom = g.data.market_cap_percentage.btc;
+        let cmc20 = 100 - btcDom;
+
+        document.getElementById("cmc20").innerText = cmc20.toFixed(2);
+        document.getElementById("altSeason").innerText = cmc20.toFixed(0) + " / 100";
+
+        let fg = await fetch("https://api.alternative.me/fng/");
+        let fgData = await fg.json();
+
+        document.getElementById("fearGreed").innerText =
+            fgData.data[0].value + " (" + fgData.data[0].value_classification + ")";
+
+    }catch(e){}
 }
 
-function refreshMarket(){
-    load();
-}
+/* FILTER */
+function setFilter(f){ filterMode = f; render(dataStore); }
+function refreshMarket(){ load(); }
 
 /* SORT */
 function sortWhales(){
@@ -235,7 +277,6 @@ function sortWhales(){
     d.sort((a,b)=>(b.total_volume/(b.market_cap||1))-(a.total_volume/(a.market_cap||1)));
     render(d);
 }
-
 function sortGainers(){
     let d = [...dataStore];
     d.sort((a,b)=>(b.price_change_percentage_24h||0)-(a.price_change_percentage_24h||0));
@@ -250,6 +291,11 @@ function drawSparkline(canvas,data){
     let min = Math.min(...data);
     let max = Math.max(...data);
 
+    // ✅ Detect trend
+    let start = data[0];
+    let end = data[data.length - 1];
+    let isUp = end >= start;
+
     ctx.beginPath();
     data.forEach((p,i)=>{
         let x = (i/(data.length-1))*w;
@@ -258,8 +304,9 @@ function drawSparkline(canvas,data){
         else ctx.lineTo(x,y);
     });
 
-    ctx.strokeStyle="#b6ff00";
-    ctx.lineWidth=1.5;
+    // ✅ Dynamic color
+    ctx.strokeStyle = isUp ? "#00ff9f" : "#ff3b3b";
+    ctx.lineWidth = 1.5;
     ctx.stroke();
 }
 
@@ -284,19 +331,13 @@ function render(data){
         });
     }
 
- filtered = filtered.filter(c=>{
-
-    // 🚫 Hide coins with NO SIGNAL
-    if(c.ai.class === "none") return false;
-
-    // existing filter logic
-    if(filterMode==="all") return true;
-
-    return c.ai.class===filterMode;
-});
+    filtered = filtered.filter(c=>{
+        if(c.ai.class === "none") return false;
+        if(filterMode==="all") return true;
+        return c.ai.class===filterMode;
+    });
 
     filtered.forEach((c,i)=>{
-
         let mc = c.market_cap||1;
         let whale = Math.min(100,(c.total_volume/mc)*100);
 
@@ -319,15 +360,8 @@ function render(data){
         <td>$${(c.market_cap||0).toLocaleString()}</td>
         <td><span class="badge ${c.ai.class}">${c.ai.label}</span></td>
         <td>🐋 ${whale.toFixed(2)}%</td>
-        <td>
-            <div class="liquidity">
-                <div class="liq-bar" style="width:${whale}%"></div>
-            </div>
-        </td>
-        <td>
-            <canvas class="spark" width="120" height="30"
-            data='${JSON.stringify(spark)}'></canvas>
-        </td>
+        <td><div class="liquidity"><div class="liq-bar" style="width:${whale}%"></div></div></td>
+        <td><canvas class="spark" width="120" height="30" data='${JSON.stringify(spark)}'></canvas></td>
         </tr>`;
     });
 
@@ -363,6 +397,9 @@ async function load(){
 
     let top = Math.max(...json.map(c=>(c.total_volume/(c.market_cap||1))*100));
     document.getElementById("topwhale").innerText=top.toFixed(2)+"%";
+
+    // ✅ NEW CONNECTED DATA
+    loadMarketOverview();
 }
 
 load();
